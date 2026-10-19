@@ -1,12 +1,13 @@
 {
   "name": "amin-whatsapp-bot",
   "version": "1.0.0",
-  "description": "WhatsApp moderation bot for Alam Assolouk",
+  "description": "WhatsApp Anti-link moderator bot for Amin",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node --max-old-space-size=2048 index.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.7.0"
+    "@whiskeysockets/baileys": "^6.6.0",
+    "pino": "^8.19.0"
   }
 }
