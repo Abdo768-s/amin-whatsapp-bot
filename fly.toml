@@ -1,9 +1,9 @@
-# fly.toml app configuration file generated for amin-whatsapp-bot on 2026-10-19T11:46:51Z
+# fly.toml app configuration file generated for amin-whatsapp-bot-bkn5ka on 2026-10-19T17:01:46Z
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'amin-whatsapp-bot'
+app = 'amin-whatsapp-bot-bkn5ka'
 primary_region = 'cdg'
 
 [build]
