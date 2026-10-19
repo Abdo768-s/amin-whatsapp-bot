@@ -1,5 +1,12 @@
-const crypto = require("crypto");
-global.crypto = crypto;
+// حل جذري لخطأ التشفير في بيئة السيرفر السحابي
+const crypto = require('crypto');
+if (typeof globalThis.crypto === 'undefined') {
+    globalThis.crypto = crypto.webcrypto || {
+        getRandomValues: function(arr) {
+            return crypto.randomFillSync(arr);
+        }
+    };
+}
 
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers } = require("@whiskeysockets/baileys");
 const pino = require("pino");
