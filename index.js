@@ -1,7 +1,8 @@
-// حل جذري لخطأ التشفير في بيئة السيرفر السحابي
+// حل نهائي ومضمون لمشكلة التشفير في السيرفر السحابي
 const crypto = require('crypto');
-if (typeof globalThis.crypto === 'undefined') {
-    globalThis.crypto = crypto.webcrypto || {
+if (!global.crypto) {
+    global.crypto = {
+        subtle: crypto.webcrypto ? crypto.webcrypto.subtle : undefined,
         getRandomValues: function(arr) {
             return crypto.randomFillSync(arr);
         }
@@ -12,7 +13,6 @@ const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers
 const pino = require("pino");
 const config = require("./config");
 
-// سجل حفظ عدد الإنذارات لكل مشارك داخل المجموعات
 const warnings = {};
 
 async function startBot() {
@@ -27,70 +27,59 @@ async function startBot() {
 
     sock.ev.on("creds.update", saveCreds);
 
-    // استقبال الرسائل ومعالجة الأوامر باللغة العربية
+    // استقبال الرسائل والأوامر
     sock.ev.on("messages.upsert", async ({ messages }) => {
         const m = messages[0];
         if (!m.message || m.key.fromMe) return;
 
-        const remoteJid = m.key.remoteJid; // معرف المجموعة
-        const senderJid = m.key.participant || remoteJid; // مرسل الرسالة
+        const remoteJid = m.key.remoteJid;
+        const senderJid = m.key.participant || remoteJid;
         const messageType = Object.keys(m.message)[0];
         
-        // استخراج نص الرسالة
         const textMessage = messageType === "conversation" ? m.message.conversation :
                             messageType === "extendedTextMessage" ? m.message.extendedTextMessage.text : "";
 
         if (!textMessage) return;
         const cleanText = textMessage.trim().toLowerCase();
 
-        // 1. الاستجابة بكلمة "بوت" باللغة العربية
+        // 1. أمر بوت
         if (cleanText === "بوت") {
             await sock.sendMessage(remoteJid, { text: config.botGreetingMsg }, { quoted: m });
             return;
         }
 
-        // 2. الاستجابة بعبارة "اونتي لينك" أو "حماية الروابط" باللغة العربية
+        // 2. أمر اونتي لينك
         if (cleanText === "اونتي لينك" || cleanText === "حماية الروابط") {
             await sock.sendMessage(remoteJid, { text: config.antiLinkStatusMsg }, { quoted: m });
             return;
         }
 
-        // 3. نظام رصد الروابط ومنعها (Anti-Link)
+        // 3. نظام منع الروابط
         const hasLink = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9][-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*))/gi.test(textMessage);
 
         if (hasLink) {
             try {
-                // حذف رسالة الرابط فوراً
                 await sock.sendMessage(remoteJid, { delete: m.key });
 
-                // تهيئة عداد الإنذارات للعضو
                 if (!warnings[senderJid]) {
                     warnings[senderJid] = 0;
                 }
-
                 warnings[senderJid] += 1;
 
                 if (warnings[senderJid] === 1) {
-                    // المرة الأولى: مسح + منشن للرسالة المخالفة + تحذير أول
                     await sock.sendMessage(remoteJid, { 
                         text: `${config.firstWarningMsg}\n✍️ إشراف: ${config.ownerName} (${config.groupTitle})` 
                     }, { quoted: m });
-
                 } else if (warnings[senderJid] >= config.maxWarnings) {
-                    // المرة الثانية: مسح + منشن للرسالة + تحذير نهائي + طرد العضو
                     await sock.sendMessage(remoteJid, { 
                         text: `${config.secondWarningMsg}\n✍️ إشراف: ${config.ownerName} (${config.groupTitle})` 
                     }, { quoted: m });
 
-                    // تنفيذ أمر طرد العضو من المجموعة نهائياً
                     await sock.groupParticipantsUpdate(remoteJid, [senderJid], "remove");
-                    
-                    // مسح العداد الخاص به بعد الطرد
                     delete warnings[senderJid];
                 }
-
             } catch (error) {
-                console.log("خطأ في معالجة الحماية أو طرد العضو:", error);
+                console.log("خطأ في معالجة الحماية:", error);
             }
         }
     });
@@ -107,7 +96,7 @@ async function startBot() {
 
         if (connection === "close") {
             const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-            console.log("إعادة الاتصال بالسيرفر السحابي بسبب انقطاع الاتصال...");
+            console.log("إعادة الاتصال بالسيرفر السحابي...");
             if (shouldReconnect) {
                 startBot();
             }
