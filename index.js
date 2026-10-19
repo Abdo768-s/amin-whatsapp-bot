@@ -1,4 +1,4 @@
-// 1. تهيئة التشفير لبيئة التشغيل السحابية والفيزيائية لتفادي أخطاء النظام
+// 1. تهيئة بيئة التشفير لتفادي أخطاء السيرفر
 const crypto = require('crypto');
 if (typeof globalThis.crypto === 'undefined') {
     globalThis.crypto = crypto.webcrypto || {
@@ -12,13 +12,16 @@ if (typeof globalThis.crypto === 'undefined') {
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers } = require("@whiskeysockets/baileys");
 const pino = require("pino");
 const qrcode = require("qrcode-terminal");
-const config = require("./config");
 
-// سجل تخزين عدد الإنذارات لكل مستخدم داخل المجموعات
+// إعدادات اسمك واسم المجموعة الخاص بك
+const ownerName = "أمين";
+const groupTitle = "عالم السلوكة";
+
+// سجل حفظ الإنذارات لكل مشارك
 const warnings = {};
 
 async function startBot() {
-    // إنشاء وحفظ جلسة الاتصال لتجنب مسح الرمز كل مرة
+    // إدارة جلسة الحساب لتجنب إعادة مسح QR في كل مرة
     const { state, saveCreds } = await useMultiFileAuthState("auth_session");
 
     const sock = makeWASocket({
@@ -30,7 +33,7 @@ async function startBot() {
 
     sock.ev.on("creds.update", saveCreds);
 
-    // 3. الاستماع للرسائل الواردة ومعالجة الأوامر ونظام الحماية
+    // 3. الاستماع للرسائل الواردة ومعالجة الأوامر بدقة
     sock.ev.on("messages.upsert", async ({ messages }) => {
         const m = messages[0];
         if (!m.message || m.key.fromMe) return;
@@ -46,24 +49,26 @@ async function startBot() {
         if (!textMessage) return;
         const cleanText = textMessage.trim().toLowerCase();
 
-        // أمر الرد الترحيبي: بوت
+        // الأمر الأول: كلمة "بوت" فقط ودون أقواس
         if (cleanText === "بوت") {
-            await sock.sendMessage(remoteJid, { text: config.botGreetingMsg }, { quoted: m });
+            const replyMsg = `مرحباً بك! أنا بوت حماية المجموعة الخاص بـ ${ownerName} مؤسس مجموعة ${groupTitle}.\nأنا هنا لخدمتكم والحفاظ على نظام المجموعة.`;
+            await sock.sendMessage(remoteJid, { text: replyMsg }, { quoted: m });
             return;
         }
 
-        // أمر حالة الحماية: اونتي لينك
-        if (cleanText === "اونتي لينك" || cleanText === "حماية الروابط") {
-            await sock.sendMessage(remoteJid, { text: config.antiLinkStatusMsg }, { quoted: m });
+        // الأمر الثاني: عبارة "ممنوع الروابط" فقط ودون أقواس
+        if (cleanText === "ممنوع الروابط") {
+            const statusMsg = `⚙️ **نظام الحماية مفعل:**\nيُمنع منعاً باتاً نشر الروابط داخل المجموعة.\n- الإنذار الأول: حذف الرسالة وتوجيه تنبيه.\n- الإنذار الثاني: الطرد النهائي من المجموعة.\n✍️ تحت إشراف: ${ownerName}`;
+            await sock.sendMessage(remoteJid, { text: statusMsg }, { quoted: m });
             return;
         }
 
-        // 4. فحص الروابط (Anti-Link) وتطبيق نظام الإنذارين
+        // 4. نظام رصد الروابط المخالفة وتطبيق الحماية
         const hasLink = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9][-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*))/gi.test(textMessage);
 
         if (hasLink) {
             try {
-                // حذف رسالة الرابط المخالفة فوراً
+                // حذف رسالة الرابط فوراً
                 await sock.sendMessage(remoteJid, { delete: m.key });
 
                 if (!warnings[senderJid]) {
@@ -72,27 +77,23 @@ async function startBot() {
                 warnings[senderJid] += 1;
 
                 if (warnings[senderJid] === 1) {
-                    // الإنذار الأول مع عمل اقتباس (منشن) لرسالة العضو
-                    await sock.sendMessage(remoteJid, { 
-                        text: `${config.firstWarningMsg}\n✍️ إشراف: ${config.ownerName} (${config.groupTitle})` 
-                    }, { quoted: m });
-                } else if (warnings[senderJid] >= config.maxWarnings) {
-                    // الإنذار الثاني وتنفيد الطرد النهائي
-                    await sock.sendMessage(remoteJid, { 
-                        text: `${config.secondWarningMsg}\n✍️ إشراف: ${config.ownerName} (${config.groupTitle})` 
-                    }, { quoted: m });
+                    const warn1 = `⚠️ **تنبيه أول:** يمنع نشر الروابط في مجموعة ${groupTitle}.\nعند نشر رابط آخر سيتم طردك تلقائياً!\n✍️ إشراف: ${ownerName}`;
+                    await sock.sendMessage(remoteJid, { text: warn1 }, { quoted: m });
+                } else if (warnings[senderJid] >= 2) {
+                    const warn2 = `🚫 **تنبيه ثاني وطرد:** لقد تجاوزت الحد المسموح لنشر الروابط.\nتم طردك من المجموعة.\n✍️ إشراف: ${ownerName}`;
+                    await sock.sendMessage(remoteJid, { text: warn2 }, { quoted: m });
 
-                    // أمر طرد العضو من المجموعة
+                    // طرد العضو المخالف من المجموعة
                     await sock.groupParticipantsUpdate(remoteJid, [senderJid], "remove");
                     delete warnings[senderJid];
                 }
             } catch (error) {
-                console.log("خطأ تقني في معالجة الحماية أو الطرد:", error);
+                console.log("خطأ برمجي في تطبيق الحماية:", error);
             }
         }
     });
 
-    // 5. مراقبة حالة الاتصال وعرض كود الـ QR بصرياً
+    // 5. إدارة الاتصال وعرض رمز الـ QR بصرياً في السجلات
     sock.ev.on("connection.update", async (update) => {
         const { connection, lastDisconnect, qr } = update;
         
@@ -100,7 +101,6 @@ async function startBot() {
             console.log("\n=========================================");
             console.log("امسح كود QR التالي عبر تطبيق WhatsApp:");
             console.log("=========================================\n");
-            // رسم الكود في السجلات بمربعات واضحة
             qrcode.generate(qr, { small: true });
         }
 
@@ -116,5 +116,5 @@ async function startBot() {
     });
 }
 
-// بدء تشغيل البرنامج
+// تشغيل البرنامج
 startBot();
