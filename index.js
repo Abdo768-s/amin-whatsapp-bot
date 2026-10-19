@@ -11,7 +11,7 @@ const PHONE_NUMBER = "212630207190";
 const MY_NAME = "أمين مؤسس مجموعات عالم السلوكة";
 
 async function startBot() {
-    // إدارة جلسة الاتصال والحفظ //
+    // إدارة جلسة الاتصال والحفظ في ملفات محلية //
     const { state, saveCreds } = await useMultiFileAuthState("auth_session");
 
     const sock = makeWASocket({
@@ -26,6 +26,7 @@ async function startBot() {
     sock.ev.on("connection.update", async (update) => {
         const { connection, lastDisconnect, qr } = update;
         
+        // إذا ظهر كود الاستجابة السريعة، سيتم طباعته في السجلات لتمسحه بهاتفك //
         if (qr) {
             console.log("-----------------------------------------");
             console.log("امسح كود QR التالي عبر تطبيق WhatsApp في هاتفك:");
