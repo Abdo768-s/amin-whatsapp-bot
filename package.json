@@ -1,14 +1,12 @@
 {
   "name": "amin-whatsapp-bot",
   "version": "1.0.0",
-  "description": "WhatsApp Anti-link moderator bot for Amin",
   "main": "index.js",
   "scripts": {
-    "start": "node --max-old-space-size=2048 index.js"
+    "start": "node index.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.6.0",
-    "pino": "^8.19.0",
-    "crypto-js": "^4.2.0"
+    "@whiskeysockets/baileys": "6.5.0",
+    "pino": "^8.19.0"
   }
 }
