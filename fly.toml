@@ -1,15 +1,15 @@
-# fly.toml app configuration file generated for amin-whatsapp-bot-bkn5ka on 2026-10-19T17:01:46Z
+# fly.toml app configuration file generated for amin-whatsapp-bot-4vo6oa on 2026-10-19T17:41:14Z
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'amin-whatsapp-bot-bkn5ka'
-primary_region = 'cdg'
+app = 'amin-whatsapp-bot-4vo6oa'
+primary_region = 'ams'
 
 [build]
 
 [http_service]
-  internal_port = 3000
+  internal_port = 8080
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
